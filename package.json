@@ -1,0 +1,14 @@
+{
+  "name": "discordbot",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node ./app.js"
+  },
+  "dependencies": {
+    "@google/genai": "^0.7.0",
+    "node-fetch": "^3.3.2",
+    "ws": "^8.18.1"
+  },
+  "type": "module"
+}
