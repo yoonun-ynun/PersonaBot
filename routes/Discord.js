@@ -139,7 +139,6 @@ function startSocket(){
             session_id = message.d.session_id; // Store the session ID for future use
             console.log("Session ID:", session_id); // Log the session ID for debugging
             httpRequest.createCommand("대화", `AI${user_name}과 대화합니다.`);
-            httpRequest.createCommand("생각", "사용되지 않는 명령입니다.");
         }
         if(command == 0 && message.t == 'INTERACTION_CREATE'){
             // Handle interaction create events from Discord
@@ -154,10 +153,6 @@ function startSocket(){
             httpRequest.respondFirst(interactionID, interactionToken, "처리중입니다..."); // Respond to the interaction with a deferred message
             var id = message.d.id; // Get the interaction ID
             commandList[id] = {applicationID: message.d.application_id, interactionToken: interactionToken, data: message.d.data?.options[0]?.value}; // Store the interaction ID and token for later use
-            }else if(message.d.data.name == "생각"){
-                console.log("Received interaction for 생각 command");
-                // Handle the 생각 command here
-                httpRequest.RespondInteraction(interactionID, interactionToken, "사용되지 않는 명령입니다.");
             }
             if(message.d.member.user.username == user_id){
                 const time = new Date();

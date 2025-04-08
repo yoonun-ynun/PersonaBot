@@ -1,6 +1,7 @@
 Persona Bot
 =
-특정 인물의 특징을 학습하여 해당 인물을 흉내내는 디스코드 봇 프로젝트 입니다.
+특정 인물의 특징을 학습하여 해당 인물을 흉내내는 디스코드 봇 프로젝트 입니다.<br>
+Google Gemini를 사용합니다.
 
 
 Install
@@ -44,3 +45,16 @@ Additional Discription
 <br>
 <br>
 만약 USER_NAME과 USER_ID가 제대로 된 값이 전달된다면 해당 USER_ID를 가진 유저가 보낸 메시지를 자동으로 output.json에 기록합니다.
+<br>
+<br>
+
+Usage
+-
+> /대화
+
+Gemini 2.5Pro or Gemini 2.0Flash(2.5가 응답하지 않을경우)를 사용하는 대화 명령입니다.
+
+> {USER_NAME}아 {대화할 텍스트}
+
+봇 이름을 이용하여 대화하는 명령입니다.<br>
+Gemini 2.0Flash-Lite 모델을 사용합니다.
