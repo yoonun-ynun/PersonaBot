@@ -11,7 +11,7 @@ Install
 ```sh
 fetch https://github.com/yoonun-ynun/PersonaBot.git
 ```
-> build docket image & run image
+> build docker image & run image
 ```sh
 sudo docker build . -t discord_bot:latest
 ```
