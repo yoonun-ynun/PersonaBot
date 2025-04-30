@@ -3,6 +3,7 @@ import httpRequest from "./Request.js"; // Import the Request module if needed
 import WebSocket from "ws";
 import Gemini from "./Gemini.js";
 import fs from "fs"; // Import the fs module for file operations
+import { env } from "process";
 
 global.Discords = null;
 var commandList = {};
@@ -154,7 +155,7 @@ function startSocket(){
             var id = message.d.id; // Get the interaction ID
             commandList[id] = {applicationID: message.d.application_id, interactionToken: interactionToken, data: message.d.data?.options[0]?.value}; // Store the interaction ID and token for later use
             }
-            if(message.d.member.user.username == user_id){
+            if(message.d?.member?.user?.username == user_id){
                 const time = new Date();
                 const date = time.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
                 const temp = {header: {name: user_name, date: date}, data: message.d.data?.options[0]?.value}; // Create a temporary object to store the message content
@@ -176,7 +177,7 @@ function startSocket(){
                 // Handle the MESSAGE_CREATE event for the interaction
                 console.log("Handling MESSAGE_CREATE for interaction ID:", interaction_id);
                 // You can respond to the interaction here using the RespondInteraction function from the Request module
-                Gemini.test(httpRequest.editOriginalInteractionResponse, interaction_data.applicationID, interaction_data.interactionToken, interaction_data.data, "gemini-2.5-pro-exp-03-25", true); // Call Gemini with the message content
+                Gemini.start(false,httpRequest.editOriginalInteractionResponse, interaction_data.applicationID, interaction_data.interactionToken, interaction_data.data, "gemini-2.5-pro-exp-03-25", true); // Call Gemini with the message content
             }
             commandList[interaction_id] = null; // Clear the stored interaction data
         }
@@ -201,13 +202,24 @@ function startSocket(){
             // Handle messages that start with "XX아"
             console.log("Received message starting with XX아:", message.d.content);
             // You can respond to the message here using the RespondInteraction function from the Request module
-            Gemini.reply(httpRequest.replyMessage, message.d.channel_id, message.d.id, message.d.content); // Call Gemini with the message content
+            Gemini.start(true,httpRequest.replyMessage, message.d.channel_id, message.d.id, message.d.content); // Call Gemini with the message content
             var id = message.d.id; // Get the interaction ID
             
             var data = message.d.content.slice(4); // Extract the command data from the message
         }
         if(command == 0 && message.t == 'MESSAGE_CREATE' && message.d.author.username == user_id){
             const temp = {header: {name: user_name, date: message.d.timestamp}, data: message.d.content}; // Create a temporary object to store the message content
+            global.user_chat.push(temp); // Push the message content to the global chat array
+            // Store the chat data in a JSON file
+            fs.writeFile('./studyData/output.json', JSON.stringify(global.user_chat), (err) => {
+                if (err) {
+                    console.error('Error writing file:', err); // Log any errors that occur during file writing
+                    return;
+                }
+                console.log('File has been saved!'); // Log a success message when the file is saved
+            });
+        }else if(command == 0 && message.t == 'MESSAGE_CREATE' && message.d.author.username != env.BOT_NAME){
+            const temp = {header: {name: message.d.author.global_name || message.d.author.username, date: message.d.timestamp}, data: message.d.content}; // Create a temporary object to store the message content
             global.user_chat.push(temp); // Push the message content to the global chat array
             // Store the chat data in a JSON file
             fs.writeFile('./studyData/output.json', JSON.stringify(global.user_chat), (err) => {
