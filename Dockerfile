@@ -1,4 +1,4 @@
-FROM node:20.10.0
+FROM node:24.0.1-slim
 
 WORKDIR /usr/src/Discord
 
