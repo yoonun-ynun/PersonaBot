@@ -1,9 +1,8 @@
 import { GoogleGenAI } from '@google/genai';
-import { Worker } from 'worker_threads';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { Type } from '@google/genai';
-import os from 'os';
+import DataBase from './DataBase.js';
 
 // __dirname 대체하기
 const __filename = fileURLToPath(import.meta.url);
@@ -47,24 +46,27 @@ function test(respond, applicationID, interactionToken, text, model, isfirst, cu
     }).catch((error) => {
         console.error("Error during chat response:", error); // Log any errors that occur during the chat response
         if(!isfirst){
-            respond(applicationID, interactionToken, "일일 할달량이 전부 사용되어 명령어 사용이 불가능합니다."); // Respond with an error message
+            respond(applicationID, interactionToken, "일일 할달량이 전부 사용되거나 일시적인 오류로 인해 명령어 사용이 불가능합니다."); // Respond with an error message
             return;
         }
         // Retry with a different model if the first attempt fails
         console.log("Retrying with a different model...");
-        test(respond, applicationID, interactionToken, text, "gemini-2.5-flash-preview-04-17", false, customContext); // Retry with a different model
+        test(respond, applicationID, interactionToken, text, "gemini-2.5-flash", false, customContext); // Retry with a different model
         
     })
 }
 
 function reply(respond, channelID, messageID, text, customContext =[]){
     const chat = ai.chats.create({
-        model: "gemini-2.0-flash-lite", // Specify the model to use
+        model: "gemini-2.5-flash-lite-preview-06-17", // Specify the model to use
         history: global.user_history.Chat.concat(mini_answer_data), // Use the existing history for context, if any
         config:{
             systemInstruction: global.user_setting + JSON.stringify(customContext), // Set the system instruction for the chat
             temperature: 0.7, // Set the temperature for response variability
             maxTokens: 2000, // Set the maximum number of tokens for the response
+            tools: [
+                {googleSearch: {}}, // Enable Google Search tool
+            ]
         }
     })
     chat.sendMessage({
@@ -124,9 +126,11 @@ function start(isreply, respond, applicationID, interactionToken, text, model, i
         const subject = result.response;
         console.log(subject);
 
-        const contextData = await getData(subject);
-        contextData.slice(contextData.length-2000);
-        // Limit the context data to the last 2000 characters to avoid excessive memory usage
+        let contextData = await DataBase.search(subject);
+        contextData = contextData.map((item) => {
+            return item.data;
+        })
+        console.log(`${subject}에 대한 ${contextData.length}개의 데이터가 검색되었습니다.(최대 2000개)`);
         if(!isreply){
             test(respond, applicationID, interactionToken, text, model, isfirst, contextData);
         }else{
@@ -134,102 +138,9 @@ function start(isreply, respond, applicationID, interactionToken, text, model, i
         }
     }).catch((error) => {
         console.error("Error during chat response:", error); // Log any errors that occur during the chat response
+        respond(applicationID, interactionToken, "DB 검색을 위한 단어 추출 중 오류가 발생하였습니다."); // Respond with an error message
         return null; // Return null in case of an error
     })
-}
-
-async function getData(subjects){
-    if (!global.user_chat || !Array.isArray(global.user_chat) || !subjects || !Array.isArray(subjects)) {
-        console.log("유효하지 않은 데이터 또는 주제 배열입니다.");
-        return [];
-    }
-    // CPU 코어 수에 따라 워커 수 결정 
-    const numWorkers = Math.min(Math.floor(global.user_chat.length/5000), os.cpus().length);
-    console.log(`${numWorkers}개의 워커로 검색 실행`);
-    
-    const chatLength = global.user_chat.length;
-    const chunkSize = Math.ceil(chatLength / numWorkers);
-    const workers = [];
-    
-    // 워커 생성 및 작업 분배
-    const workerPromises = [];
-    for (let i = 0; i < numWorkers; i++) {
-        const startIdx = i * chunkSize;
-        const endIdx = Math.min(startIdx + chunkSize, chatLength);
-        const chatChunk = global.user_chat.slice(startIdx, endIdx);
-        
-        const workerPromise = new Promise((resolve, reject) => {
-            const worker = new Worker(path.resolve(__dirname, './searchWorker.js'), {
-                workerData: {
-                    chatChunk,
-                    subjects,
-                    startIdx
-                }
-            });
-            
-            worker.on('message', (data) => {
-                resolve({ worker, data, startIdx });
-            });
-            
-            worker.on('error', reject);
-            worker.on('exit', (code) => {
-                if (code !== 0) {
-                    reject(new Error(`Worker stopped with exit code ${code}`));
-                }
-            });
-            
-            workers.push(worker);
-        });
-        
-        workerPromises.push(workerPromise);
-    }
-    
-    // 모든 워커의 결과 수집
-    const results = await Promise.all(workerPromises);
-    
-    // 워커 종료
-    for (const worker of workers) {
-        worker.terminate();
-    }
-    
-    // 결과 병합 및 컨텍스트 추출
-    const allMatchedChats = [];
-    const includedIndices = new Set();
-    
-    // 각 워커의 매칭 결과 처리
-    results.forEach(({ data, startIdx }) => {
-        data.matchedIndices.forEach(relativeIndex => {
-            const absoluteIndex = startIdx + relativeIndex;
-            
-            // 컨텍스트 범위 계산 (현재 인덱스 기준 앞뒤 10개)
-            const contextStartIdx = Math.max(0, absoluteIndex - 10);
-            const contextEndIdx = Math.min(chatLength - 1, absoluteIndex + 10);
-            
-            // 컨텍스트 범위의 대화들을 결과에 추가
-            for (let i = contextStartIdx; i <= contextEndIdx; i++) {
-                // 중복 방지
-                if (!includedIndices.has(i)) {
-                    includedIndices.add(i);
-                    allMatchedChats.push(global.user_chat[i]);
-                }
-            }
-        });
-    });
-    
-    // 시간순으로 정렬
-    allMatchedChats.sort((a, b) => {
-        try {
-            // 한국어 날짜 형식 파싱
-            const dateA = parseKoreanDate(a.header.date);
-            const dateB = parseKoreanDate(b.header.date);
-            return dateA - dateB;
-        } catch (error) {
-            return 0; // 파싱 실패 시 순서 유지
-        }
-    });
-    
-    console.log(`검색어 [${subjects.join(', ')}]와 관련된 ${allMatchedChats.length}개의 대화 컨텍스트를 찾았습니다.`);
-    return allMatchedChats;
 }
 
 export default {

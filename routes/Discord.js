@@ -4,6 +4,7 @@ import WebSocket from "ws";
 import Gemini from "./Gemini.js";
 import fs from "fs"; // Import the fs module for file operations
 import { env } from "process";
+import DataBase from "./DataBase.js";
 
 global.Discords = null;
 var commandList = {};
@@ -150,24 +151,11 @@ function startSocket(){
             console.log("Recieved data from Discord interaction:", message.d.data); // Log the interaction data for debugging
             if(message.d.data.name == "대화"){
                 console.log("Received interaction for 대화 command");
+                var user_id = message.d.author?.id || message.d.member?.user?.id || message.d.user?.id; // Get the username from the interaction data
                 // Handle the 대화 command here
             httpRequest.respondFirst(interactionID, interactionToken, "처리중입니다..."); // Respond to the interaction with a deferred message
             var id = message.d.id; // Get the interaction ID
-            commandList[id] = {applicationID: message.d.application_id, interactionToken: interactionToken, data: message.d.data?.options[0]?.value}; // Store the interaction ID and token for later use
-            }
-            if(message.d?.member?.user?.username == user_id){
-                const time = new Date();
-                const date = time.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
-                const temp = {header: {name: user_name, date: date}, data: message.d.data?.options[0]?.value}; // Create a temporary object to store the message content
-                global.user_chat.push(temp); // Push the message content to the global chat array
-                // Store the chat data in a JSON file
-                fs.writeFile('./studyData/output.json', JSON.stringify(global.user_chat), (err) => {
-                    if (err) {
-                        console.error('Error writing file:', err); // Log any errors that occur during file writing
-                        return;
-                    }
-                    console.log('File has been saved!'); // Log a success message when the file is saved
-                });
+            commandList[id] = {applicationID: message.d.application_id, interactionToken: interactionToken, data: message.d.data?.options[0]?.value,user_id:user_id}; // Store the interaction ID and token for later use
             }
         }
         if(command == 0 && message.t == 'MESSAGE_CREATE' && message.d.interaction_metadata){
@@ -176,8 +164,12 @@ function startSocket(){
             if(interaction_data){
                 // Handle the MESSAGE_CREATE event for the interaction
                 console.log("Handling MESSAGE_CREATE for interaction ID:", interaction_id);
-                // You can respond to the interaction here using the RespondInteraction function from the Request module
-                Gemini.start(false,httpRequest.editOriginalInteractionResponse, interaction_data.applicationID, interaction_data.interactionToken, interaction_data.data, "gemini-2.5-pro-exp-03-25", true); // Call Gemini with the message content
+                DataBase.getUserName(interaction_data.user_id).then((result)=>{
+                    var sendData = {user: result, message: interaction_data.data};
+                    console.log(sendData);
+                    // You can respond to the interaction here using the RespondInteraction function from the Request module
+                    Gemini.start(false,httpRequest.editOriginalInteractionResponse, interaction_data.applicationID, interaction_data.interactionToken, JSON.stringify(sendData), "gemini-2.5-pro", true); // Call Gemini with the message content
+                });
             }
             commandList[interaction_id] = null; // Clear the stored interaction data
         }
@@ -207,28 +199,9 @@ function startSocket(){
             
             var data = message.d.content.slice(4); // Extract the command data from the message
         }
-        if(command == 0 && message.t == 'MESSAGE_CREATE' && message.d.author.username == user_id){
-            const temp = {header: {name: user_name, date: message.d.timestamp}, data: message.d.content}; // Create a temporary object to store the message content
-            global.user_chat.push(temp); // Push the message content to the global chat array
-            // Store the chat data in a JSON file
-            fs.writeFile('./studyData/output.json', JSON.stringify(global.user_chat), (err) => {
-                if (err) {
-                    console.error('Error writing file:', err); // Log any errors that occur during file writing
-                    return;
-                }
-                console.log('File has been saved!'); // Log a success message when the file is saved
-            });
-        }else if(command == 0 && message.t == 'MESSAGE_CREATE' && message.d.author.username != env.BOT_NAME){
-            const temp = {header: {name: message.d.author.global_name || message.d.author.username, date: message.d.timestamp}, data: message.d.content}; // Create a temporary object to store the message content
-            global.user_chat.push(temp); // Push the message content to the global chat array
-            // Store the chat data in a JSON file
-            fs.writeFile('./studyData/output.json', JSON.stringify(global.user_chat), (err) => {
-                if (err) {
-                    console.error('Error writing file:', err); // Log any errors that occur during file writing
-                    return;
-                }
-                console.log('File has been saved!'); // Log a success message when the file is saved
-            });
+        if(command == 0 && message.t == 'MESSAGE_CREATE' && message.d.author.username != env.BOT_NAME){
+            const data = {user_id: message.d.author.id, user_name: message.d.author.global_name || message.d.author.username, id: message.d.id, data: message.d.content, created_at: message.d.timestamp}; // Create a temporary object to store the message content
+            DataBase.save(data); // Call the save function from the DataBase module to save the message content
         }
     }
     socket.on('error', (error) => {

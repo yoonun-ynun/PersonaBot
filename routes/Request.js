@@ -11,7 +11,7 @@ function createCommand(name, description){
         options: [
             {
                 name: 'data',
-                description: '정현과 얘기하고 싶은 내용을 입력 해 보세요',
+                description: '봇과 얘기하고 싶은 내용을 입력 해 보세요',
                 type: 3,
                 required: true // This makes the option required
             }
@@ -22,7 +22,7 @@ function createCommand(name, description){
         headers: {
             'Authorization': `Bot ${BotToken}`,
             'Content-Type': 'application/json',
-            'User-Agent': 'junghyunBot/1.0'
+            'User-Agent': 'PersonaBot/1.0'
         },
         body: JSON.stringify(body)
     };
@@ -56,7 +56,7 @@ function RespondInteraction(interactionID, interactionToken, responseData) {
         headers: {
             'Authorization': `Bot ${BotToken}`,
             'Content-Type': 'application/json',
-            'User-Agent': 'junghyunBot/1.0'
+            'User-Agent': 'PersonaBot/1.0'
         },
         body: JSON.stringify(body)
     };
@@ -87,7 +87,7 @@ function respondFirst(interactionID, interactionToken, responseData){
         headers: {
             'Authorization': `Bot ${process.env.DISCORD_TOKEN}`, // Use your bot token
             'Content-Type': 'application/json',
-            'User-Agent': 'junghyunBot/1.0'
+            'User-Agent': 'PersonaBot/1.0'
         },
         body: JSON.stringify(body)
     };
@@ -120,7 +120,7 @@ function editMessage(channelID, messageID, content){
         headers: {
             'Authorization': `Bot ${BotToken}`, // Use your bot token
             'Content-Type': 'application/json',
-            'User-Agent': 'junghyunBot/1.0'
+            'User-Agent': 'PersonaBot/1.0'
         },
         body: JSON.stringify(body)
     };
@@ -148,7 +148,7 @@ function editOriginalInteractionResponse(applicationID, interactionToken, conten
         headers: {
             'Authorization': `Bot ${BotToken}`, // Use your bot token
             'Content-Type': 'application/json',
-            'User-Agent': 'junghyunBot/1.0'
+            'User-Agent': 'PersonaBot/1.0'
         },
         body: JSON.stringify(body)
     };
@@ -181,7 +181,7 @@ function replyMessage(channelID, messageID, content){
         headers: {
             'Authorization': `Bot ${BotToken}`, // Use your bot token
             'Content-Type': 'application/json',
-            'User-Agent': 'junghyunBot/1.0'
+            'User-Agent': 'PersonaBot/1.0'
         },
         body: JSON.stringify(body)
     };
